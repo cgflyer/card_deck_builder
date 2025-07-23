@@ -1,68 +1,81 @@
 #!/usr/bin/env python3
 
-from gi.repository import Gimp, GimpUi, Gio, GLib
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+#   GIMP - The GNU Image Manipulation Program
+#   Copyright (C) 1995 Spencer Kimball and Peter Mattis
+#
+#   gimp-tutorial-plug-in.py
+#   sample plug-in to illustrate the Python plug-in writing tutorial
+#   Copyright (C) 2023 Jacob Boerema
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import sys
+
+import gi
+gi.require_version('Gimp', '3.0')
+from gi.repository import Gimp
+gi.require_version('GimpUi', '3.0')
+from gi.repository import GimpUi
+
+from gi.repository import GLib
+from gi.repository import Gio
 from typing import Any
 from pathlib import Path
 import os
-import sys
-from utils import IndentedLogger
+#from utils import IndentedLogger
 import logging
 
 
-logger = IndentedLogger(logging.getLogger(__name__))
+#logger = IndentedLogger(logging.getLogger(__name__))
+logger = logging.getLogger(__name__)
 
+class CardDeckBuilderPlugin (Gimp.PlugIn):
+    def do_query_procedures(self):
+        return [ "cfb-add-background" ]
 
-def paste_icons_to_layer(image: Any, info_layer: Gimp.Layer, card_config: CardFaceConfig, icon_dir="images/dice-icons", 
-                 icon_size=128, grid_border=8, inset=64, project_home="card-face-builder"):
-    
-    icon_path = Path(project_home) / icon_dir
-    # Calculate starting position (top-right corner inset)
-    img_width = image.get_width()
-    row_codes = card_config.cost.split(",")
-    start_x = inset
-    start_y = inset
+    def do_set_i18n (self, name):
+        return False
 
-    # Map codes to filenames
-    code_to_file = {
-        "o": "4-orb_128.png",
-        "c": "5-crystal_128.png",
-        "h": "6-hat_128.png",
-        "s": "1-staff_128.png"
-        # Add more mappings as needed
-    }
-    font = "Sans"
-    for idx, row_code in enumerate(row_codes):
-        x_pos = img_width - (inset + len(row_code) * (icon_size + grid_border) - grid_border)
-        y_pos = inset + idx * (icon_size + grid_border)
-        for icon_col_idx, code in enumerate(row_code):
-            if code.isdigit():
-                # this is a count followed by number of icon required
-                staff_count = code
-                text_layer = Gimp.TextLayer.new(image, staff_count, font, 64.0, Gimp.Unit.PIXEL)
-                Gimp.edit_copy(text_layer)
+    def do_create_procedure(self, name):
+        if name == "cfb-add-background":
+            return self.create_procedure_add_background(name)
+        
+    def do_create_procedure_add_background(self, name):
+        procedure = Gimp.ImageProcedure.new(self, name,
+                                            Gimp.PDBProcType.PLUGIN,
+                                            self.run_add_background, None)
 
-            elif code not in code_to_file:
-                continue  # Skip unknown codes
-            else:
-                icon_path = os.path.join(str(icon_path), code_to_file[code])
-                icon_file = Gio.File.new_for_path(icon_path)
-                icon_image = Gimp.file_load(icon_file, icon_file, Gimp.RunMode.NONINTERACTIVE)
-                icon_layer = icon_image.get_active_layer()
-                Gimp.edit_copy(icon_layer)
+        procedure.set_image_types("*")
 
-            # Copy and insert into main image
-            floating_sel = Gimp.edit_paste(info_layer, False)
-            floating_sel.set_offsets(x_pos, y_pos)
-            Gimp.floating_sel_anchor(floating_sel)
+        procedure.set_menu_label("CardFaceBuilder plug-in add background")
+        procedure.add_menu_path('<Image>/Filters/CardDeck/')
 
-def build_info_layer(base_image, info_layer_filename, run_mode ):
+        procedure.set_documentation("Card Deck image builder - add background",
+                                    "Handles adding background to card face image",
+                                    name)
+        procedure.set_attribution("Charles Galles", "Charles Galles", "2025")
 
-    # Add info layer
-    info_file = Gio.File.new_for_path(info_layer_filename)
-    info_image = Gimp.file_load(info_file, info_file, run_mode)
-    info_layer = info_image.get_active_layer()
-    base_image.insert_layer(info_layer.copy(), None, -1)
-    return info_layer
+        return procedure
+
+    def run_add_background(self, procedure, run_mode, image, drawables, config, run_data):
+        Gimp.message(f"Add Background - would add to image with size {image.get_width()},{image.get_height()}")
+        # do what you want to do, then, in case of success, return:
+        return procedure.new_return_values(Gimp.PDBStatusType.SUCCESS, GLib.Error())
+
 
 def add_background_layer(image, selected_layer):
     # Convert the hex color to RGB
@@ -176,4 +189,4 @@ class CardFrontLayerBuilder(Gimp.PlugIn):
 
             return procedure.new_return_values(Gimp.PDBStatusType.SUCCESS, GLib.Error())
 
-Gimp.main(CardFrontLayerBuilder.__gtype__, sys.argv)
+Gimp.main(CardDeckBuilderPlugin.__gtype__, sys.argv)
