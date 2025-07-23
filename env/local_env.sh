@@ -1,0 +1,1 @@
+export GIMP_PLUGIN_FOLDER="/Volumes/Storage/Applications 2/GIMP.app/Contents/Resources/lib/gimp/3.0/plug-ins"

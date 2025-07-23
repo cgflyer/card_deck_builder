@@ -52,7 +52,7 @@ class CardDeckBuilderPlugin (Gimp.PlugIn):
 
     def do_create_procedure(self, name):
         if name == "cfb-add-background":
-            return self.create_procedure_add_background(name)
+            return self.do_create_procedure_add_background(name)
         
     def do_create_procedure_add_background(self, name):
         procedure = Gimp.ImageProcedure.new(self, name,
